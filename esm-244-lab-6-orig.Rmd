@@ -1,0 +1,51 @@
+---
+title: "Lab"
+author: "An Bui"
+date: "2/14/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Goals: 
+
+- Read in spatial data (shapefiles)
+- Simplify polygons (st_simplify)
+- Add and transform projection (st_transform and st_crs)
+- Create several finalized-ish maps in R
+- Join spatial data (st_join)
+- Find spatial intersections (st_intersect)
+- Interactive plots with tmap
+- Updating color schemes, base layers, etc.
+- Plotting spatial lines
+- Creating sf data from lat/lon coordinates
+
+```{r}
+#### libraries ####
+library(sf)
+library(tidyverse)
+library(tmap)
+library(leaflet)
+library(ggrepel)
+library(ggspatial)
+library(RColorBrewer)
+library(raster)
+```
+
+##### Example 1. Dams in California
+
+```{r}
+
+```
+
+
+
+
+
+
+
+
+
+
