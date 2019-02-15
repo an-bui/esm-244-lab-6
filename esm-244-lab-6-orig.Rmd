@@ -36,9 +36,188 @@ library(raster)
 
 ##### Example 1. Dams in California
 
-```{r}
+```{r get data into R}
+#### California ecoregions ####
+# lots of files that will need to be loaded, so plan accordingly
+# read_sf() for simple features information (layers from files), "." for current working directory
+ca_eco <- read_sf(".", 
+                  # all files with ca_eco in them
+                  layer = "ca_eco") %>% 
+  # only select column with ecoregion name, sf automatically attaches geometries
+  dplyr::select(US_L3NAME) %>% 
+  # rename column to "Region"
+  rename(Region = US_L3NAME) %>% 
+  # simplify polygon to get files to run more easily
+  st_simplify(dTolerance = 100) %>% 
+  # specify coordinate reference system
+  st_transform(crs = 4326)
 
+# st_crs(ca_eco) gives summary info
+
+#### California counties ####
+ca_counties <- read_sf(".", layer = "california_county_shape_file")
+
+# set same projection system as ca_eco
+st_crs(ca_counties) = 4326
+
+#### California dams ####
+ca_dams <- read_sf(".", layer = "California_Jurisdictional_Dams") %>% 
+  # rename column for ease of use
+  rename(Condition = Condition_)
+
+# set condition column to factor
+# choose column
+ca_dams$Condition <- fct_relevel(ca_dams$Condition, 
+                                 # set levels
+                                 "Fair", "Satisfactory", "Unsatisfactory", "Poor")
 ```
+
+```{r maps}
+#### plot in base R ####
+plot(ca_eco)
+
+plot(ca_counties)
+# makes different maps for each attribute
+
+#### map in ggplot ####
+# modify RColorBrewer palettes
+color_count <- 13
+# create a palette using brewer.pal(number of original colors to use, palette)
+new_colors <- colorRampPalette(brewer.pal(10, "Set2"))(color_count)
+
+ca_eco_plot <- ggplot(ca_eco) +
+  # create a map using spatial information
+  geom_sf(aes(fill = Region),
+          # get rid of outline
+          color = "NA",
+          # get rid of legend
+          show.legend = FALSE) +
+  # change color scheme
+  scale_fill_manual(values = new_colors) +
+  # add geom_sf() for counties
+  geom_sf(data = ca_counties,
+          # take out fill, only leave county lines
+          fill = "NA",
+          # change outline color
+          color = "gray30",
+          # change size of line
+          size = 0.1) +
+  # add dam locations
+  geom_point(data = ca_dams,
+             # specify aes because there is longitude and latitude data to map dams
+             aes(x = Longitude, y = Latitude),
+             size = 1,
+             color = "gray10",
+             alpha = 0.5) +
+  theme_minimal() +
+  # get rid of coordinates on axes
+  coord_sf(datum = NA)
+  
+  
+ca_eco_plot
+```
+
+##### Example 2. Dams in the Sierra Nevada eco-region
+```{r}
+#### wrangling ####
+sn <- ca_eco %>% 
+  filter(Region == "Sierra Nevada") %>% 
+  # join with ca_dams information
+  st_join(ca_dams)
+
+#### plot ####
+ggplot(sn) +
+  # take all ca_counties data
+  geom_sf(data = ca_counties, 
+          fill = "wheat3",
+          color = "NA") +
+  # take sn data specifically
+  geom_sf(fill = "lemonchiffon4",
+          color = "NA") +
+  # add dams
+  geom_point(aes(x = Longitude, y = Latitude),
+             size = 0.5,
+             color = "red4")
+```
+
+##### Example 3. Eco-regions for Santa Barbara County
+
+```{r eco-regions for SBCo}
+#### wrangle for SBCo ####
+sb <- ca_counties %>% 
+  filter(NAME == "Santa Barbara")
+# four rows because islands
+
+#### clip eco-region data for regions only in SBCo ####
+# clip ca_eco polygon by the bounds of the sb polygon
+eco_clip <- st_intersection(ca_eco, sb)
+plot(eco_clip)
+
+#### more finalized plot ####
+ggplot(eco_clip) +
+  # county information
+  geom_sf(data = ca_counties, 
+          fill = "gray90",
+          color = "gray80",
+          size = 0.2) +
+  # add clipped ecoregion data
+  geom_sf(aes(fill = Region),
+          color = "NA") +
+  # change color scheme
+  scale_fill_manual(values = c("darkolivegreen2", "darkolivegreen", "gold2")) +
+  # limit coordinates in map
+  coord_sf(xlim = c(-121, -119), 
+           ylim = c(33.5, 35.5)) +
+  # add point for downtown SB
+  geom_point(aes(x = -119.6982, y = 34.4208),
+             size = 2) +
+  # add a label
+  geom_text(x = -119.6982, y = 34.35,
+            label = "Santa Barbara") +
+  theme_minimal() +
+  theme(legend.position = c(0.5, 0.15))
+```
+
+##### Example 4. Intro to interactive plots with `tmap`
+
+```{r plot with tmap}
+#### tmap ####
+map_sb_eco <- tm_shape(eco_clip) +
+  # fill polygons by Region
+  tm_fill("Region", 
+          palette = "RdPu", 
+          alpha = 0.5) +
+  # plot borders
+  # for each layer, set a different shape
+  tm_shape(ca_counties) +
+  tm_borders()
+
+# sets tmap_mode to interactive viewing
+tmap_mode("view")
+
+map_sb_eco
+
+#### try with a different base map #####
+# leaflet::providers gives a list of all possible basemaps
+tm_basemap("CartoDB.DarkMatter") +
+  tm_shape(eco_clip) +
+  tm_borders(col = "white")
+```
+
+##### Example 5. Fault lines
+
+```{r}
+#### read in data ####
+fault_lines <- read_sf(".", layer = "GMC_str_arc") %>% 
+  # use if there is an existing projection (.prj file)
+  st_transform(crs = 4326) %>% 
+  # break LTYPE into separate columns
+  separate(LTYPE, into = c("syn_ant", "certainty", "direction"),
+           sep = ",")
+```
+
+
+
 
 
 
